@@ -8,7 +8,7 @@ from shapely.geometry import Point
 from pyproj import Transformer
 
 
-def load_world_data(path = 'data/world/Water_Bodies.shp', target_crs = 'EPSG:4326'):
+def load_world_data(path = 'data/world/Water_Bodies_Full.shp', target_crs = 'EPSG:4326'):
 
     world = gpd.read_file(path)
     world.set_crs(epsg=4326, inplace=True)

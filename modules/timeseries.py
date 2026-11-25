@@ -1,8 +1,19 @@
 
 import pandas as pd
 import numpy as np
-from statsmodels.tsa.seasonal import STL
+import datetime
+
 from patsy import dmatrix
+from scipy.stats import linregress
+from statsmodels.tsa.seasonal import STL
+
+
+# Define window lengths outside the function to avoid recalculating them each time (for temporal variability metric)
+revisit_time = 6 # days
+
+n_obs_2yrs = int(2*365.25/revisit_time) # how many observations in 2 years
+n_obs_3yrs = int(3*365.25/revisit_time) # how many observations in 3 years
+month_shift = int(30/revisit_time) # how many observations per month
 
 
 def drop_non_ts_cols(df):
@@ -134,3 +145,60 @@ def decompose_spline_harmonic_fast(ts, spline_bases=None, seasonal_terms=None, P
         raise ValueError("All df_trend values failed.")
 
     return best_trend, best_seasonal, best_resid
+
+
+def temporal_variability_metric(df):
+
+    ts_df = drop_non_ts_cols(df)
+    date_objects = [datetime.date.fromisoformat(col) for col in ts_df.columns]
+    numeric_dates = [d.toordinal() for d in date_objects]
+    
+    tvms = []
+
+    # Iterate over rows to calculate the temporal variability metric for each time series
+    for i in range(len(ts_df)):
+        
+        x = ts_df.iloc[i].to_numpy(dtype=float)
+        tvm = calculate_tvm(x, numeric_dates)
+        tvms.append(tvm)
+        
+        if i%1000 == 0:
+            print(f'{i}/{len(df)}')
+            
+    return tvms
+
+
+def calculate_tvm(x, numeric_dates): 
+    
+    slope_overall = get_slope(numeric_dates, x) 
+    window_slopes = moving_window_slopes(x, numeric_dates)
+
+    return np.mean(np.abs(window_slopes - slope_overall)) 
+
+
+def moving_window_slopes(x, numeric_dates, shift = month_shift):
+    
+    slopes = []
+
+    for window_length in [n_obs_2yrs, n_obs_3yrs]:
+        
+        start_idx = 0
+        end_idx = window_length
+
+        while end_idx <= len(numeric_dates):
+
+            slope_year = get_slope(time = numeric_dates[start_idx:end_idx], x = x[start_idx:end_idx])
+            slopes.append(slope_year)
+
+            start_idx += shift
+            end_idx += shift
+    
+    return slopes
+
+
+def get_slope(time, x):
+    
+    slope_day, intercept, r_val, p_val, std_err = linregress(time, x)
+    slope_year = slope_day * 365.25
+    
+    return slope_year

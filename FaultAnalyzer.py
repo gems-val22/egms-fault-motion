@@ -196,7 +196,7 @@ class FaultPolygons:
 
 class PolygonTS:
 
-    def __init__(self, polygon, egms_df, yearly_ts_error = 1):
+    def __init__(self, polygon, egms_df, yearly_ts_error = 1, points_only = False):
         
         self.polygon = polygon
         self.egms_df = egms_df
@@ -205,13 +205,14 @@ class PolygonTS:
         # get points within the polygon
         self.polygon_points = self.get_points_within_polygon()
 
-        # get average time series
-        self.tsdata = ts.drop_non_ts_cols(self.polygon_points.copy(deep=True)).reset_index(drop=True) # time series data for points within the polygon, with non-time-series columns dropped
-        
-        self.n_series, self.n_time = self.tsdata.shape
-        self.end_ts_error = yearly_ts_error * np.round(self.n_time / 60.875)  # scale error to the length of the time series
-                                                                        # 60.875 = avg. measurements in a year (6-day intervals)
-        self.polygon_ts = self.get_ts_df()
+        if not points_only:
+            # get average time series
+            self.tsdata = ts.drop_non_ts_cols(self.polygon_points.copy(deep=True)).reset_index(drop=True) # time series data for points within the polygon, with non-time-series columns dropped
+            
+            self.n_series, self.n_time = self.tsdata.shape
+            self.end_ts_error = yearly_ts_error * np.round(self.n_time / 60.875)  # scale error to the length of the time series
+                                                                            # 60.875 = avg. measurements in a year (6-day intervals)
+            self.polygon_ts = self.get_ts_df()
 
 
     def get_points_within_polygon(self):
